@@ -1,0 +1,8 @@
+{
+  "track_id": "ui_enhancements_20260406",
+  "type": "feature",
+  "status": "new",
+  "created_at": "2026-04-06T22:30:00Z",
+  "updated_at": "2026-04-06T22:30:00Z",
+  "description": "Move the ghost and dragged piece above the finger. The shelf needs to have a fixed height of 100px."
+}
