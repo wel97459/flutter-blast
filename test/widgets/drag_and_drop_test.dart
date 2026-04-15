@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:blockblast_flutter/main.dart'; // Assuming MyApp is here
 import 'package:blockblast_flutter/models/piece.dart';
-import 'package:blockblast_flutter/widgets/piece_shelf.dart';
 import 'package:blockblast_flutter/widgets/block_widget.dart' as model_block;
 
 void main() {

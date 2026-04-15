@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:blockblast_flutter/main.dart';
-import 'package:blockblast_flutter/widgets/game_board_grid.dart';
-import 'package:blockblast_flutter/models/block.dart';
 import 'package:blockblast_flutter/models/piece.dart';
-import 'package:blockblast_flutter/widgets/piece_shelf.dart';
 
 void main() {
-  testWidgets('Score should be displayed and update', (WidgetTester tester) async {
+  testWidgets('Score should be displayed and update', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const MyApp());
 
     // Initially score is 0
@@ -17,12 +16,17 @@ void main() {
     final pieceFinder = find.byType(Draggable<Piece>);
     final Draggable<Piece> draggable = tester.widget(pieceFinder.first);
     final Piece piece = draggable.data!;
-    
+
     final gameBoardGridFinder = find.byKey(const Key('game_board_grid'));
-    
-    final gesture = await tester.startGesture(tester.getCenter(pieceFinder.first));
+
+    final gesture = await tester.startGesture(
+      tester.getCenter(pieceFinder.first),
+    );
     // Finger at row 4 + piece.height, col 4
-    await gesture.moveTo(tester.getTopLeft(gameBoardGridFinder) + Offset(160.0, 160.0 + piece.height * 40.0));
+    await gesture.moveTo(
+      tester.getTopLeft(gameBoardGridFinder) +
+          Offset(160.0, 160.0 + piece.height * 40.0),
+    );
     await tester.pump();
     await gesture.up();
     await tester.pumpAndSettle();

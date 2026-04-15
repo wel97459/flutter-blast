@@ -1,13 +1,8 @@
-import 'package:flutter/material.dart';
-
 class Block {
   final int color; // Use int to represent ARGB color
   final bool isFilled;
 
-  const Block({
-    required this.color,
-    this.isFilled = true,
-  });
+  const Block({required this.color, this.isFilled = true});
 
   // Factory constructor for an empty block
   factory Block.empty() {
