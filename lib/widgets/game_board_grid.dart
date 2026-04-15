@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:blockblast_flutter/models/block.dart';
 import 'package:blockblast_flutter/widgets/block_widget.dart';
 import 'package:blockblast_flutter/models/piece.dart';
@@ -12,25 +13,49 @@ class GameBoardGrid extends StatefulWidget {
   final Function(Piece, int, int) didAcceptData;
 
   const GameBoardGrid({
-    Key? key,
+    super.key,
     required this.blocks,
     this.cellSize = 42.0,
     required this.didAcceptData,
-  }) : super(key: key);
+  });
 
   @override
   State<GameBoardGrid> createState() => _GameBoardGridState();
 }
 
-class _GameBoardGridState extends State<GameBoardGrid> {
+class _GameBoardGridState extends State<GameBoardGrid>
+    with SingleTickerProviderStateMixin {
   int? _hoverRow;
   int? _hoverCol;
   Piece? _hoverPiece;
+  Set<int> _previewRows = <int>{};
+  Set<int> _previewCols = <int>{};
+  late final AnimationController _pulseController;
+  late final Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 350),
+    )..repeat(reverse: true);
+    _pulseAnimation = CurvedAnimation(
+      parent: _pulseController,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   (int, int) _getDropCell(Offset localOffset, Piece piece) {
-    final double boardX = localOffset.dx - widget.padding.toDouble();
-    final double boardY = localOffset.dy - widget.padding.toDouble();
-    final double topLeftX = boardX - (piece.width * widget.cellSize)/2;
+    final double boardX = localOffset.dx;
+    final double boardY = localOffset.dy;
+    final double topLeftX = boardX - (piece.width * widget.cellSize) / 2;
     final double topLeftY = boardY - (piece.height * widget.cellSize);
 
     return (
@@ -55,19 +80,42 @@ class _GameBoardGridState extends State<GameBoardGrid> {
           final (int row, int col) = _getDropCell(localOffset, piece);
 
           if (isValidPlacement(widget.blocks, piece, row, col)) {
+            final linesToClear = getLinesToClearForPlacement(
+              widget.blocks,
+              piece,
+              row,
+              col,
+            );
+            final previewRows = linesToClear.rows.toSet();
+            final previewCols = linesToClear.cols.toSet();
+
             if (_hoverRow != row || _hoverCol != col || _hoverPiece != piece) {
               setState(() {
                 _hoverRow = row;
                 _hoverCol = col;
                 _hoverPiece = piece;
+                _previewRows = previewRows;
+                _previewCols = previewCols;
+              });
+            } else if (!setEquals(_previewRows, previewRows) ||
+                !setEquals(_previewCols, previewCols)) {
+              setState(() {
+                _previewRows = previewRows;
+                _previewCols = previewCols;
               });
             }
           } else {
-            if (_hoverRow != null) {
+            if ((_hoverRow != null ||
+                    _previewRows.isNotEmpty ||
+                    _previewCols.isNotEmpty) &&
+                ((row - _hoverRow!).abs() > 1 ||
+                    (col - _hoverCol!).abs() > 1)) {
               setState(() {
                 _hoverRow = null;
                 _hoverCol = null;
                 _hoverPiece = null;
+                _previewRows = <int>{};
+                _previewCols = <int>{};
               });
             }
           }
@@ -78,6 +126,8 @@ class _GameBoardGridState extends State<GameBoardGrid> {
           _hoverRow = null;
           _hoverCol = null;
           _hoverPiece = null;
+          _previewRows = <int>{};
+          _previewCols = <int>{};
         });
       },
       onAcceptWithDetails: (DragTargetDetails<Piece> details) {
@@ -101,6 +151,8 @@ class _GameBoardGridState extends State<GameBoardGrid> {
           _hoverRow = null;
           _hoverCol = null;
           _hoverPiece = null;
+          _previewRows = <int>{};
+          _previewCols = <int>{};
         });
       },
       builder:
@@ -110,50 +162,53 @@ class _GameBoardGridState extends State<GameBoardGrid> {
             List rejectedData,
           ) {
             return Container(
-              padding: EdgeInsets.all(widget.padding.toDouble()),
+              //padding: EdgeInsets.only(bottom: widget.padding.toDouble()),
               key: const Key('game_board_grid'),
-              width:
-                  widget.gridSize * widget.cellSize +
-                  (widget.padding * 2).toDouble(),
-              height:
-                  widget.gridSize * widget.cellSize +
-                  (widget.padding * 2).toDouble(),
+              width: widget.gridSize * widget.cellSize,
+              height: widget.gridSize * widget.cellSize,
               decoration: BoxDecoration(
                 border: Border.all(color: Colors.black, width: 2.0),
               ),
-              child: Stack(
-                children: [
-                  // The base grid
-                  Column(
-                    children: List.generate(widget.gridSize, (row) {
-                      return Expanded(
-                        child: Row(
-                          children: List.generate(widget.gridSize, (col) {
-                            return Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  border: Border.all(
-                                    color: Colors.black26,
-                                    width: 0.5,
+              child: AnimatedBuilder(
+                animation: _pulseController,
+                builder: (context, child) {
+                  return Stack(
+                    children: [
+                      // The base grid
+                      Column(
+                        children: List.generate(widget.gridSize, (row) {
+                          return Expanded(
+                            child: Row(
+                              children: List.generate(widget.gridSize, (col) {
+                                return Expanded(
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      border: Border.all(
+                                        color: Colors.black26,
+                                        width: 0.5,
+                                      ),
+                                    ),
+                                    child: BlockWidget(
+                                      block: widget.blocks[row][col],
+                                      size: widget.cellSize,
+                                    ),
                                   ),
-                                ),
-                                child: BlockWidget(
-                                  block: widget.blocks[row][col],
-                                  size: widget.cellSize,
-                                ),
-                              ),
-                            );
-                          }),
-                        ),
-                      );
-                    }),
-                  ),
-                  // The preview ghost
-                  if (_hoverRow != null &&
-                      _hoverCol != null &&
-                      _hoverPiece != null)
-                    ..._buildPreviewGhost(),
-                ],
+                                );
+                              }),
+                            ),
+                          );
+                        }),
+                      ),
+                      // The preview ghost
+                      if (_previewRows.isNotEmpty || _previewCols.isNotEmpty)
+                        ..._buildClearLinePreview(),
+                      if (_hoverRow != null &&
+                          _hoverCol != null &&
+                          _hoverPiece != null)
+                        ..._buildPreviewGhost(),
+                    ],
+                  );
+                },
               ),
             );
           },
@@ -165,8 +220,6 @@ class _GameBoardGridState extends State<GameBoardGrid> {
     final Piece piece = _hoverPiece!;
     final int baseRow = _hoverRow!;
     final int baseCol = _hoverCol!;
-    final double inset = (widget.cellSize - 40.0).clamp(0.0, 2.0) / 2;
-    final double ghostSize = widget.cellSize - (inset * 2);
 
     for (final pos in piece.shape) {
       final int row = baseRow + pos.$1;
@@ -178,15 +231,15 @@ class _GameBoardGridState extends State<GameBoardGrid> {
           col < widget.gridSize) {
         ghostBlocks.add(
           Positioned(
-            top: row * widget.cellSize + inset,
-            left: col * widget.cellSize + inset,
-            width: ghostSize,
-            height: ghostSize,
+            top: row * (widget.cellSize - 0.5),
+            left: col * (widget.cellSize - 0.5),
+            width: widget.cellSize,
+            height: widget.cellSize,
             child: Opacity(
               opacity: 0.5,
               child: BlockWidget(
                 block: Block(color: piece.color),
-                size: ghostSize,
+                size: widget.cellSize,
               ),
             ),
           ),
@@ -194,5 +247,59 @@ class _GameBoardGridState extends State<GameBoardGrid> {
       }
     }
     return ghostBlocks;
+  }
+
+  List<Widget> _buildClearLinePreview() {
+    final List<Widget> highlights = [];
+    final pulse = _pulseAnimation.value;
+    final fillAlpha = 0.55 + (0.35 * pulse);
+    final strokeAlpha = 0.55 + (0.35 * pulse);
+    final strokeWidth = 1.0 + (0.8 * pulse);
+
+    for (final row in _previewRows) {
+      highlights.add(
+        Positioned(
+          top: row * widget.cellSize,
+          left: 0,
+          width: widget.gridSize * widget.cellSize,
+          height: widget.cellSize,
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: fillAlpha),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: strokeAlpha),
+                  width: strokeWidth,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    for (final col in _previewCols) {
+      highlights.add(
+        Positioned(
+          top: 0,
+          left: col * widget.cellSize,
+          width: widget.cellSize,
+          height: widget.gridSize * widget.cellSize,
+          child: IgnorePointer(
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.amber.withValues(alpha: fillAlpha),
+                border: Border.all(
+                  color: Colors.orange.withValues(alpha: strokeAlpha),
+                  width: strokeWidth,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return highlights;
   }
 }

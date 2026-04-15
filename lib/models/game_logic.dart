@@ -15,6 +15,50 @@ bool isValidPlacement(List<List<Block>> grid, Piece piece, int row, int col) {
   return true;
 }
 
+({List<int> rows, List<int> cols}) getLinesToClearForPlacement(
+  List<List<Block>> grid,
+  Piece piece,
+  int row,
+  int col,
+) {
+  if (!isValidPlacement(grid, piece, row, col)) {
+    return (rows: const <int>[], cols: const <int>[]);
+  }
+
+  final pieceCells = <(int, int)>{
+    for (final pos in piece.shape) (row + pos.$1, col + pos.$2),
+  };
+
+  final fullRows = <int>[];
+  final fullCols = <int>[];
+
+  for (int r = 0; r < grid.length; r++) {
+    bool isFull = true;
+    for (int c = 0; c < grid[r].length; c++) {
+      final willBeFilled = grid[r][c].isFilled || pieceCells.contains((r, c));
+      if (!willBeFilled) {
+        isFull = false;
+        break;
+      }
+    }
+    if (isFull) fullRows.add(r);
+  }
+
+  for (int c = 0; c < grid[0].length; c++) {
+    bool isFull = true;
+    for (int r = 0; r < grid.length; r++) {
+      final willBeFilled = grid[r][c].isFilled || pieceCells.contains((r, c));
+      if (!willBeFilled) {
+        isFull = false;
+        break;
+      }
+    }
+    if (isFull) fullCols.add(c);
+  }
+
+  return (rows: fullRows, cols: fullCols);
+}
+
 void placePiece(List<List<Block>> grid, Piece piece, int row, int col) {
   for (var pos in piece.shape) {
     final r = row + pos.$1;
