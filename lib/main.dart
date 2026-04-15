@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:blockblast_flutter/widgets/game_board_grid.dart';
 import 'package:blockblast_flutter/models/block.dart';
@@ -38,20 +40,46 @@ class MyHomePage extends StatefulWidget {
 }
 
 class _MyHomePageState extends State<MyHomePage> {
+  final Random _random = Random();
+  static const List<int> _seedBlockColors = [
+    0xFF42A5F5, // blue
+    0xFF66BB6A, // green
+    0xFFEF5350, // red
+    0xFFFFA726, // orange
+    0xFF26A69A, // teal
+  ];
+
   // Game board blocks (initially empty)
   late List<List<Block>> _gameBoardBlocks;
+  // Copy of the game board for piece generation
+  late List<List<Block>> _gameBoardBlocksCopy;
   late List<Piece> _currentPieces;
   int _score = 0;
   int _combo = 0;
   int _shelfResetCounter = 1; // Counter to trigger shelf reset
 
+  List<List<Block>> _generateSeededBoard() {
+    // Keep seeded density low so the game remains solvable.
+    const seededCellChance = 0.16;
+
+    return List.generate(8, (_) {
+      return List.generate(8, (_) {
+        final shouldFill = _random.nextDouble() < seededCellChance;
+        if (!shouldFill) {
+          return Block.empty();
+        }
+
+        final color =
+            _seedBlockColors[_random.nextInt(_seedBlockColors.length)];
+        return Block(color: color);
+      });
+    });
+  }
+
   @override
   void initState() {
     super.initState();
-    _gameBoardBlocks = List.generate(
-      8,
-      (_) => List.generate(8, (_) => Block.empty()),
-    );
+    _gameBoardBlocks = _generateSeededBoard();
     _currentPieces = _generateNextPieces();
     _score = 0;
     _combo = 0;
@@ -59,6 +87,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   List<Piece> _generateNextPieces() {
+    _gameBoardBlocksCopy = _gameBoardBlocks
+        .map((row) => row.map((block) => block).toList())
+        .toList(); // Deep copy of the game board
     return List.generate(3, (_) => _generatePlayablePiece());
   }
 
@@ -66,7 +97,15 @@ class _MyHomePageState extends State<MyHomePage> {
     var candidate = Piece.generateRandomPiece();
 
     for (int attempt = 0; attempt < 5; attempt++) {
-      if (findBestPiece(_gameBoardBlocks, candidate)) {
+      final bestPosition = findBestPiece(_gameBoardBlocksCopy, candidate);
+      if (bestPosition.isNotEmpty) {
+        placePiece(
+          _gameBoardBlocksCopy,
+          candidate,
+          bestPosition['row']!,
+          bestPosition['col']!,
+        ); // Place the piece at the best position
+        checkAndClearLines(_gameBoardBlocksCopy);
         return candidate;
       }
       candidate = Piece.generateRandomPiece();
@@ -80,7 +119,7 @@ class _MyHomePageState extends State<MyHomePage> {
       placePiece(_gameBoardBlocks, piece, row, col);
       final linesCleared = checkAndClearLines(_gameBoardBlocks);
       _score += calculateScore(piece, linesCleared, _combo);
-      if (linesCleared > 1 && _combo == 0) {
+      if (linesCleared > 0 && _combo == 0) {
         _combo++;
         _shelfResetCounter = 2; // Reset shelf counter on multi-line clear
       } else if (linesCleared > 0 && _combo > 0) {
@@ -119,10 +158,7 @@ class _MyHomePageState extends State<MyHomePage> {
               onPressed: () {
                 Navigator.of(context).pop();
                 setState(() {
-                  _gameBoardBlocks = List.generate(
-                    8,
-                    (_) => List.generate(8, (_) => Block.empty()),
-                  );
+                  _gameBoardBlocks = _generateSeededBoard();
                   _currentPieces = _generateNextPieces();
                   _score = 0;
                   _combo = 0;
@@ -147,10 +183,11 @@ class _MyHomePageState extends State<MyHomePage> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: Center(
               child: Text(
-                _combo > 0 ? 'Score: $_score (Combo: $_combo | Shelf Reset: $_shelfResetCounter)' : 'Score: $_score',
-                style: const TextStyle(
+                'Score: $_score',
+                style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
+                  color: _combo > 0 ? Colors.red : Colors.black,
                 ),
               ),
             ),

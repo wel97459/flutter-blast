@@ -16,7 +16,6 @@ bool isValidPlacement(List<List<Block>> grid, Piece piece, int row, int col) {
 }
 
 void placePiece(List<List<Block>> grid, Piece piece, int row, int col) {
-
   for (var pos in piece.shape) {
     final r = row + pos.$1;
     final c = col + pos.$2;
@@ -72,7 +71,7 @@ int checkAndClearLines(List<List<Block>> grid) {
 }
 
 int calculateScore(Piece piece, int linesCleared, int combo) {
-  return piece.shape.length + (linesCleared * 22) * (combo + 1);
+  return piece.shape.length + (linesCleared * 22) + (combo * 24);
 }
 
 bool isGameOver(List<List<Block>> grid, List<Piece> pieces) {
@@ -90,13 +89,13 @@ bool isGameOver(List<List<Block>> grid, List<Piece> pieces) {
   return true;
 }
 
-bool findBestPiece(List<List<Block>> grid, Piece piece) {
+Map<String, int> findBestPiece(List<List<Block>> grid, Piece piece) {
   for (int r = 0; r < grid.length; r++) {
     for (int c = 0; c < grid[0].length; c++) {
       if (isValidPlacement(grid, piece, r, c)) {
-        return true;
+        return {'row': r, 'col': c};
       }
     }
   }
-  return false;
+  return {};
 }
