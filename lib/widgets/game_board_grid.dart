@@ -11,12 +11,14 @@ class GameBoardGrid extends StatefulWidget {
   final double cellSize;
   final int padding = 20;
   final Function(Piece, int, int) didAcceptData;
+  final bool isDraggingPiece;
 
   const GameBoardGrid({
     super.key,
     required this.blocks,
     this.cellSize = 42.0,
     required this.didAcceptData,
+    this.isDraggingPiece = false,
   });
 
   @override
@@ -39,7 +41,7 @@ class _GameBoardGridState extends State<GameBoardGrid>
     _pulseController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 350),
-    )..repeat(reverse: true);
+    );
     _pulseAnimation = CurvedAnimation(
       parent: _pulseController,
       curve: Curves.easeInOut,
@@ -52,9 +54,59 @@ class _GameBoardGridState extends State<GameBoardGrid>
     super.dispose();
   }
 
+  double get _hoverPreviewMargin => widget.cellSize * 1.75;
+
+  bool _isOutsideVisibleBoard(Offset localOffset) {
+    final boardExtent = widget.gridSize * widget.cellSize;
+    return localOffset.dx < _hoverPreviewMargin ||
+        localOffset.dx > _hoverPreviewMargin + boardExtent ||
+        localOffset.dy < _hoverPreviewMargin ||
+        localOffset.dy > _hoverPreviewMargin + boardExtent;
+  }
+
+  void _updatePulseAnimation({required bool active}) {
+    if (active) {
+      if (!_pulseController.isAnimating) {
+        _pulseController.repeat(reverse: true);
+      }
+      return;
+    }
+
+    _pulseController.stop();
+    _pulseController.value = 0;
+  }
+
+  void _resetHoverState() {
+    if (_hoverRow == null &&
+        _hoverCol == null &&
+        _hoverPiece == null &&
+        _previewRows.isEmpty &&
+        _previewCols.isEmpty) {
+      return;
+    }
+
+    _updatePulseAnimation(active: false);
+
+    setState(() {
+      _hoverRow = null;
+      _hoverCol = null;
+      _hoverPiece = null;
+      _previewRows = <int>{};
+      _previewCols = <int>{};
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant GameBoardGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.isDraggingPiece && !widget.isDraggingPiece) {
+      _resetHoverState();
+    }
+  }
+
   (int, int) _getDropCell(Offset localOffset, Piece piece) {
-    final double boardX = localOffset.dx;
-    final double boardY = localOffset.dy;
+    final double boardX = localOffset.dx - _hoverPreviewMargin;
+    final double boardY = localOffset.dy - _hoverPreviewMargin;
     final double topLeftX = boardX - (piece.width * widget.cellSize) / 2;
     final double topLeftY = boardY - (piece.height * widget.cellSize);
 
@@ -88,6 +140,9 @@ class _GameBoardGridState extends State<GameBoardGrid>
             );
             final previewRows = linesToClear.rows.toSet();
             final previewCols = linesToClear.cols.toSet();
+            _updatePulseAnimation(
+              active: previewRows.isNotEmpty || previewCols.isNotEmpty,
+            );
 
             if (_hoverRow != row || _hoverCol != col || _hoverPiece != piece) {
               setState(() {
@@ -105,30 +160,20 @@ class _GameBoardGridState extends State<GameBoardGrid>
               });
             }
           } else {
-            if ((_hoverRow != null ||
-                    _previewRows.isNotEmpty ||
-                    _previewCols.isNotEmpty) &&
+            if (!_isOutsideVisibleBoard(localOffset) &&
+                _hoverRow != null &&
+                _hoverCol != null &&
                 ((row - _hoverRow!).abs() > 1 ||
                     (col - _hoverCol!).abs() > 1)) {
-              setState(() {
-                _hoverRow = null;
-                _hoverCol = null;
-                _hoverPiece = null;
-                _previewRows = <int>{};
-                _previewCols = <int>{};
-              });
+              _resetHoverState();
             }
           }
         }
       },
       onLeave: (Piece? piece) {
-        setState(() {
-          _hoverRow = null;
-          _hoverCol = null;
-          _hoverPiece = null;
-          _previewRows = <int>{};
-          _previewCols = <int>{};
-        });
+        if (!widget.isDraggingPiece) {
+          _resetHoverState();
+        }
       },
       onAcceptWithDetails: (DragTargetDetails<Piece> details) {
         // Use the current hover state if it's valid.
@@ -147,13 +192,7 @@ class _GameBoardGridState extends State<GameBoardGrid>
           }
         }
 
-        setState(() {
-          _hoverRow = null;
-          _hoverCol = null;
-          _hoverPiece = null;
-          _previewRows = <int>{};
-          _previewCols = <int>{};
-        });
+        _resetHoverState();
       },
       builder:
           (
@@ -161,54 +200,57 @@ class _GameBoardGridState extends State<GameBoardGrid>
             List<Piece?> candidateData,
             List rejectedData,
           ) {
-            return Container(
-              //padding: EdgeInsets.only(bottom: widget.padding.toDouble()),
-              key: const Key('game_board_grid'),
-              width: widget.gridSize * widget.cellSize,
-              height: widget.gridSize * widget.cellSize,
-              decoration: BoxDecoration(
-                border: Border.all(color: Colors.black, width: 2.0),
-              ),
-              child: AnimatedBuilder(
-                animation: _pulseController,
-                builder: (context, child) {
-                  return Stack(
-                    children: [
-                      // The base grid
-                      Column(
-                        children: List.generate(widget.gridSize, (row) {
-                          return Expanded(
-                            child: Row(
-                              children: List.generate(widget.gridSize, (col) {
-                                return Expanded(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      border: Border.all(
-                                        color: Colors.black26,
-                                        width: 0.5,
+            return Padding(
+              padding: EdgeInsets.all(_hoverPreviewMargin),
+              child: Container(
+                //padding: EdgeInsets.only(bottom: widget.padding.toDouble()),
+                key: const Key('game_board_grid'),
+                width: widget.gridSize * widget.cellSize,
+                height: widget.gridSize * widget.cellSize,
+                decoration: BoxDecoration(
+                  border: Border.all(color: Colors.black, width: 2.0),
+                ),
+                child: AnimatedBuilder(
+                  animation: _pulseController,
+                  builder: (context, child) {
+                    return Stack(
+                      children: [
+                        // The base grid
+                        Column(
+                          children: List.generate(widget.gridSize, (row) {
+                            return Expanded(
+                              child: Row(
+                                children: List.generate(widget.gridSize, (col) {
+                                  return Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        border: Border.all(
+                                          color: Colors.black26,
+                                          width: 0.5,
+                                        ),
+                                      ),
+                                      child: BlockWidget(
+                                        block: widget.blocks[row][col],
+                                        size: widget.cellSize,
                                       ),
                                     ),
-                                    child: BlockWidget(
-                                      block: widget.blocks[row][col],
-                                      size: widget.cellSize,
-                                    ),
-                                  ),
-                                );
-                              }),
-                            ),
-                          );
-                        }),
-                      ),
-                      // The preview ghost
-                      if (_previewRows.isNotEmpty || _previewCols.isNotEmpty)
-                        ..._buildClearLinePreview(),
-                      if (_hoverRow != null &&
-                          _hoverCol != null &&
-                          _hoverPiece != null)
-                        ..._buildPreviewGhost(),
-                    ],
-                  );
-                },
+                                  );
+                                }),
+                              ),
+                            );
+                          }),
+                        ),
+                        // The preview ghost
+                        if (_previewRows.isNotEmpty || _previewCols.isNotEmpty)
+                          ..._buildClearLinePreview(),
+                        if (_hoverRow != null &&
+                            _hoverCol != null &&
+                            _hoverPiece != null)
+                          ..._buildPreviewGhost(),
+                      ],
+                    );
+                  },
+                ),
               ),
             );
           },

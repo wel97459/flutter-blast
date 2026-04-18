@@ -77,6 +77,7 @@ class _MyHomePageState extends State<MyHomePage> {
   bool _hasNewHighScoreThisGame = false;
   int _combo = 0;
   int _shelfResetCounter = 1; // Counter to trigger shelf reset
+  bool _isDraggingPiece = false;
 
   List<List<Block>> _generateSeededBoard() {
     // Keep seeded density low so the game remains solvable.
@@ -159,6 +160,7 @@ class _MyHomePageState extends State<MyHomePage> {
     int linesCleared = 0;
 
     setState(() {
+      _isDraggingPiece = false;
       placePiece(_gameBoardBlocks, piece, row, col);
       linesCleared = checkAndClearLines(_gameBoardBlocks);
       _score += calculateScore(piece, linesCleared, _combo);
@@ -281,7 +283,8 @@ class _MyHomePageState extends State<MyHomePage> {
             child: Center(
               child: GameBoardGrid(
                 blocks: _gameBoardBlocks,
-                didAcceptData: _onPieceAccepted, // Pass the callback
+                didAcceptData: _onPieceAccepted,
+                isDraggingPiece: _isDraggingPiece,
               ),
             ),
           ),
@@ -289,9 +292,20 @@ class _MyHomePageState extends State<MyHomePage> {
             padding: const EdgeInsets.all(8.0),
             child: PieceShelf(
               pieces: _currentPieces,
-              // onPickUp: () {
-              //   unawaited(_feedbackService.onPiecePicked());
-              // },
+              onPickUp: () {
+                setState(() {
+                  _isDraggingPiece = true;
+                });
+                unawaited(_feedbackService.onPiecePicked());
+              },
+              onDragFinished: () {
+                if (!_isDraggingPiece) {
+                  return;
+                }
+                setState(() {
+                  _isDraggingPiece = false;
+                });
+              },
             ),
           ),
         ],
