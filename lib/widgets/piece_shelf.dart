@@ -6,8 +6,10 @@ import 'package:blockblast_flutter/models/block.dart'
 
 class PieceShelf extends StatelessWidget {
   final List<Piece> pieces;
+  final VoidCallback? onPickUp;
 
-  const PieceShelf({Key? key, required this.pieces}) : super(key: key);
+  const PieceShelf({Key? key, required this.pieces, this.onPickUp})
+    : super(key: key);
 
   @override
   Widget build(BuildContext context) {
@@ -25,19 +27,14 @@ class PieceShelf extends StatelessWidget {
         children: pieces.map((piece) {
           return Draggable<Piece>(
             data: piece,
+            onDragStarted: onPickUp,
             dragAnchorStrategy: pointerDragAnchorStrategy,
-            feedbackOffset: Offset(
-              0,
-              -(piece.height * 40.0),
-            ),
+            feedbackOffset: Offset(0, -(piece.height * 40.0)),
             feedback: Transform.translate(
-              offset: Offset(
-                -(piece.width * 40.0)/2,
-                -(piece.height * 40.0),
-              ),
+              offset: Offset(-(piece.width * 40.0) / 2, -(piece.height * 40.0)),
               child: Material(
                 color: Colors.transparent,
-                child: Container(
+                child: SizedBox(
                   key: const Key('drag_feedback'),
                   width: piece.width * 40.0,
                   height: piece.height * 40.0,

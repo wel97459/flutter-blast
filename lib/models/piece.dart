@@ -127,9 +127,9 @@ class Piece {
   }
 
   factory Piece.generateRandomPiece() {
-    final _random = Random();
-    final randomShape = _pieceShapes[_random.nextInt(_pieceShapes.length)];
-    final randomColor = _pieceColors[_random.nextInt(_pieceColors.length)];
+    final random = Random();
+    final randomShape = _pieceShapes[random.nextInt(_pieceShapes.length)];
+    final randomColor = _pieceColors[random.nextInt(_pieceColors.length)];
     return Piece(shape: randomShape, color: randomColor);
   }
 

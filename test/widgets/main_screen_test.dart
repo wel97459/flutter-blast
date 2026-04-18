@@ -2,8 +2,28 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:blockblast_flutter/main.dart';
 import 'package:blockblast_flutter/models/piece.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('Best score should be loaded and displayed', (
+    WidgetTester tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({
+      'high_score': 77,
+    });
+
+    await tester.pumpWidget(const MyApp());
+    await tester.pumpAndSettle();
+
+    expect(find.text('Best: 77'), findsOneWidget);
+  });
+
   testWidgets('Score should be displayed and update', (
     WidgetTester tester,
   ) async {
